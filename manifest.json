@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Manga Chapter Counter",
+  "version": "1.0.0",
+  "description": "Shows chapter/volume counts from official sources on AniList manga pages",
+  "permissions": ["declarativeNetRequest"],
+  "host_permissions": [
+    "https://graphql.anilist.co/*",
+    "https://series.naver.com/*",
+    "https://www.webtoons.com/*",
+    "https://webtoons.com/*",
+    "https://comic.naver.com/*",
+    "https://page.kakao.com/*",
+    "https://webtoon.kakao.com/*",
+    "https://tapas.io/*",
+    "https://kadocomi.jp/*",
+    "https://mangaplus.shueisha.co.jp/*",
+    "https://pocket.shonenmagazine.com/*",
+    "https://comic-walker.com/*",
+    "https://jp.piccoma.com/*",
+    "https://manga.bilibili.com/*",
+    "https://*.lezhin.com/*",
+    "https://*.delitoon.de/*",
+    "https://*.tappytoon.com/*",
+    "https://*.manta.net/*",
+    "https://api.mangaupdates.com/*",
+    "https://api.asurascans.com/*",
+    "https://api.asuracomic.net/*",
+    "https://api.comicasura.net/*",
+    "https://*.asurascans.com/*",
+    "https://*.asuracomic.net/*",
+    "https://*.mangadex.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://anilist.co/manga/*"],
+      "js": ["parsers.js", "content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
