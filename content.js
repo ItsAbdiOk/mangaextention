@@ -331,12 +331,10 @@
     groups.sort((a, b) => (b.latestChapter || 0) - (a.latestChapter || 0));
 
     // Find where to insert: after "External & Streaming links" if it exists,
-    // otherwise after the sidebar grid section (before the footer)
+    // otherwise append to the end of the overview/content area
     const externalSection = document.querySelector(".external-links");
-    const insertAfter = externalSection
-      || document.querySelector(".grid-section-wrap")
-      || document.querySelector(".sidebar");
-    if (!insertAfter) return;
+    const overviewSection = document.querySelector(".overview");
+    if (!externalSection && !overviewSection) return;
 
     const section = document.createElement("div");
     section.id = SCANLATION_ID;
@@ -389,8 +387,12 @@
       section.appendChild(el);
     }
 
-    // Insert after the found section
-    insertAfter.after(section);
+    // Insert after external links, or append to end of overview
+    if (externalSection) {
+      externalSection.after(section);
+    } else {
+      overviewSection.appendChild(section);
+    }
   }
 
   // ── Loading indicator ──
@@ -460,8 +462,8 @@
       removeExisting();
       injectChapterCounts(mediaData, sourceCounts, muData);
 
-      // Inject scanlation groups — try after external links, or fallback locations
-      await waitForElement(".external-links, .grid-section-wrap, .sidebar", 10000);
+      // Inject scanlation groups — after external links, or at end of overview
+      await waitForElement(".external-links, .overview", 10000);
       injectScanlationGroups(muData);
     } catch {
       removeExisting();
