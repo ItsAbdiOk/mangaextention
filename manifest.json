@@ -29,6 +29,9 @@
     "https://api.comicasura.net/*",
     "https://*.asurascans.com/*",
     "https://*.asuracomic.net/*",
+    "https://api.omegascans.org/*",
+    "https://api.luacomic.org/*",
+    "https://api.hivetoons.org/*",
     "https://*.mangadex.org/*"
   ],
   "background": {

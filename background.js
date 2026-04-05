@@ -6,31 +6,24 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 // Strip the chrome-extension:// Origin header from API requests
 // so they aren't rejected with 403
 chrome.declarativeNetRequest.updateDynamicRules({
-  removeRuleIds: [1, 2],
+  removeRuleIds: [1, 2, 3, 4, 5],
   addRules: [
-    {
-      id: 1,
-      action: {
-        type: "modifyHeaders",
-        requestHeaders: [{ header: "Origin", operation: "remove" }],
-      },
-      condition: {
-        urlFilter: "api.mangaupdates.com",
-        resourceTypes: ["xmlhttprequest"],
-      },
+    "api.mangaupdates.com",
+    "api.asurascans.com",
+    "api.omegascans.org",
+    "api.luacomic.org",
+    "api.hivetoons.org",
+  ].map((domain, i) => ({
+    id: i + 1,
+    action: {
+      type: "modifyHeaders",
+      requestHeaders: [{ header: "Origin", operation: "remove" }],
     },
-    {
-      id: 2,
-      action: {
-        type: "modifyHeaders",
-        requestHeaders: [{ header: "Origin", operation: "remove" }],
-      },
-      condition: {
-        urlFilter: "api.asurascans.com",
-        resourceTypes: ["xmlhttprequest"],
-      },
+    condition: {
+      urlFilter: domain,
+      resourceTypes: ["xmlhttprequest"],
     },
-  ],
+  })),
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -301,15 +294,101 @@ function flameParser(canonicalBase) {
   };
 }
 
+/**
+ * Query-style API parser — for sites using api.{domain}/query endpoint.
+ * Works like Flame (client-side filtering) but uses series_slug for URLs.
+ * Used by: Omega Scans, Lua Scans
+ */
+const queryApiCaches = {};
+
+function queryApiParser(apiBase, canonicalBase, seriesType) {
+  return {
+    type: "custom",
+    search: async (base, altTitles) => {
+      const cacheKey = apiBase;
+      if (
+        !queryApiCaches[cacheKey] ||
+        Date.now() - queryApiCaches[cacheKey].time > 30 * 60 * 1000
+      ) {
+        // Fetch all series (paginated if needed)
+        const allSeries = [];
+        let page = 1;
+        const perPage = 200;
+        while (true) {
+          const url = `${apiBase}/query?perPage=${perPage}&page=${page}` +
+            (seriesType ? `&series_type=${seriesType}` : "");
+          const res = await fetch(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0",
+              Accept: "application/json",
+              Referer: canonicalBase + "/",
+            },
+          });
+          if (!res.ok) break;
+          const json = await res.json();
+          const data = json.data || [];
+          allSeries.push(...data);
+          if (data.length < perPage || allSeries.length >= (json.meta?.total || 0)) break;
+          page++;
+          if (page > 10) break; // safety limit
+        }
+        queryApiCaches[cacheKey] = { data: allSeries, time: Date.now() };
+      }
+
+      const seriesList = queryApiCaches[cacheKey].data;
+
+      // Exact title match
+      for (const title of altTitles) {
+        const lower = title.toLowerCase();
+        const match = seriesList.find(
+          (s) => (s.title || "").toLowerCase() === lower
+        );
+        if (match) return `${canonicalBase}/series/${match.series_slug}`;
+      }
+
+      // Also check alternative_names field
+      for (const title of altTitles) {
+        const lower = title.toLowerCase();
+        const match = seriesList.find((s) => {
+          const alts = s.alternative_names;
+          if (typeof alts === "string") return alts.toLowerCase().includes(lower);
+          if (Array.isArray(alts)) return alts.some((a) => a.toLowerCase() === lower);
+          return false;
+        });
+        if (match) return `${canonicalBase}/series/${match.series_slug}`;
+      }
+
+      // Fuzzy: multi-word match
+      for (const title of altTitles) {
+        const words = title.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+        if (words.length < 2) continue;
+        const match = seriesList.find((s) => {
+          const t = (s.title || "").toLowerCase();
+          return words.every((w) => t.includes(w));
+        });
+        if (match) return `${canonicalBase}/series/${match.series_slug}`;
+      }
+
+      return null;
+    },
+  };
+}
+
 const SITE_SEARCH_CONFIGS = {
   // Asura — multiple domains, canonical is asurascans.com
   "asurascans.com": asuraParser("https://api.asurascans.com", "https://asurascans.com"),
   "asuracomic.net": asuraParser("https://api.asurascans.com", "https://asurascans.com"),
   "comicasura.net": asuraParser("https://api.comicasura.net", "https://comicasura.net"),
 
-  // Flame Comics
+  // Flame Comics — /api/series returns full list, client-side filter
   "flamecomics.xyz": flameParser("https://flamecomics.xyz"),
   "flamescans.lol": flameParser("https://flamescans.lol"),
+
+  // Omega Scans — api.*/query endpoint, client-side filter
+  "omegascans.org": queryApiParser("https://api.omegascans.org", "https://omegascans.org", "Comic"),
+
+  // Lua Scans — api.*/query endpoint, client-side filter
+  "luacomic.org": queryApiParser("https://api.luacomic.org", "https://luacomic.org", null),
 };
 
 /**
