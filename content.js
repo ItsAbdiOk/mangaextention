@@ -198,29 +198,32 @@
     const hasAniListVolumes = mediaData.volumes > 0;
 
     // Group source counts by language, keep highest per language
-    const byLanguage = new Map();
+    const allByLanguage = new Map();
     for (const sc of sourceCounts) {
       const key = sc.langCode;
-      if (!byLanguage.has(key) || sc.chapters > byLanguage.get(key).chapters) {
-        byLanguage.set(key, sc);
+      if (!allByLanguage.has(key) || sc.chapters > allByLanguage.get(key).chapters) {
+        allByLanguage.set(key, sc);
       }
     }
 
-    // Add MangaUpdates RAW count if no raw source found
-    if (muData?.found && muData.latestChapter) {
+    // Build the 3 rows: RAW (original language), EN, SCAN
+    const byLanguage = new Map();
+
+    // RAW: highest from KR/JP/CN sources, or MangaUpdates fallback
+    const rawSource =
+      allByLanguage.get("KR") || allByLanguage.get("JP") || allByLanguage.get("CN");
+    if (rawSource) {
+      byLanguage.set("RAW", rawSource);
+    } else if (muData?.found && muData.latestChapter) {
       const muCh = parseInt(muData.latestChapter, 10);
       if (muCh > 0) {
-        const hasRaw = [...byLanguage.keys()].some((k) =>
-          ["KR", "JP", "CN"].includes(k)
-        );
-        if (!hasRaw) {
-          byLanguage.set("RAW", {
-            site: "MangaUpdates",
-            langCode: "RAW",
-            chapters: muCh,
-          });
-        }
+        byLanguage.set("RAW", { langCode: "RAW", chapters: muCh });
       }
+    }
+
+    // EN: English source
+    if (allByLanguage.has("EN")) {
+      byLanguage.set("EN", allByLanguage.get("EN"));
     }
 
     const hasSourceData = byLanguage.size > 0;
@@ -243,11 +246,9 @@
       valueWrap.className = "value";
 
       if (hasSourceData) {
-        const sorted = [...byLanguage.entries()].sort((a, b) => {
-          const order = { RAW: 0, KR: 0, JP: 0, CN: 0, EN: 1 };
-          return (order[a[0]] ?? 2) - (order[b[0]] ?? 2);
-        });
-        for (const [langCode, sc] of sorted) {
+        for (const [langCode] of [["RAW"], ["EN"]]) {
+          const sc = byLanguage.get(langCode);
+          if (!sc) continue;
           const row = document.createElement("div");
           row.className = "mcc-source-row";
 
