@@ -72,8 +72,9 @@
 
 .mcc-scanlation-link {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 24px 1fr auto;
   align-items: center;
+  gap: 0 10px;
   height: 30px;
   padding: 0 12px;
   margin-bottom: 6px;
@@ -83,6 +84,11 @@
   color: rgb(92, 114, 138);
   font-size: 1.3rem;
   transition: background 0.15s;
+}
+
+.mcc-scanlation-icon {
+  border-radius: 3px;
+  object-fit: contain;
 }
 
 .mcc-scanlation-link:hover {

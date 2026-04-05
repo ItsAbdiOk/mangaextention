@@ -348,6 +348,22 @@
       link.target = "_blank";
       link.rel = "noopener noreferrer";
 
+      // Favicon from Google's service
+      if (group.site) {
+        try {
+          const domain = new URL(group.site).hostname;
+          const icon = document.createElement("img");
+          icon.className = "mcc-scanlation-icon";
+          icon.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+          icon.alt = "";
+          icon.width = 24;
+          icon.height = 24;
+          link.appendChild(icon);
+        } catch {
+          // Skip icon if URL is invalid
+        }
+      }
+
       const name = document.createElement("span");
       name.className = "mcc-scanlation-name";
       name.textContent = group.name;
