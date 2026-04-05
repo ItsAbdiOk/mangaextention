@@ -1,4 +1,6 @@
-/* Manga Chapter Counter — matches AniList sidebar styling */
+/* Manga Chapter Counter — AniList-native styling */
+
+/* ── Sidebar: Chapter/Volume counts ── */
 
 #manga-chapter-counter .mcc-data-set {
   padding: 12px 0;
@@ -55,38 +57,43 @@
   50% { opacity: 0.4; }
 }
 
-/* Scanlation group links */
-#manga-chapter-counter .mcc-group-link {
+/* ── Bottom: Scanlation Groups (matches External & Streaming links) ── */
+
+.mcc-scanlation-section {
+  margin-top: 25px;
+  padding: 0 8px;
+}
+
+.mcc-scanlation-section h2 {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: rgb(var(--color-text-lighter));
+  margin-bottom: 10px;
+}
+
+.mcc-scanlation-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.mcc-scanlation-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  margin-bottom: 4px;
+  padding: 10px 14px;
   border-radius: 6px;
   background: rgba(var(--color-foreground), 0.04);
   text-decoration: none;
   color: rgb(var(--color-text));
-  transition: background 0.15s, color 0.15s;
-  cursor: pointer;
+  transition: background 0.15s;
 }
 
-#manga-chapter-counter .mcc-group-link:hover {
-  background: rgba(var(--color-blue), 0.12);
-  color: rgb(var(--color-blue));
+.mcc-scanlation-link:hover {
+  background: rgba(var(--color-foreground), 0.1);
 }
 
-#manga-chapter-counter .mcc-group-link:last-child {
-  margin-bottom: 0;
-}
-
-#manga-chapter-counter .mcc-group-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-#manga-chapter-counter .mcc-group-name {
+.mcc-scanlation-name {
   font-size: 1.3rem;
   font-weight: 500;
   white-space: nowrap;
@@ -94,23 +101,13 @@
   text-overflow: ellipsis;
 }
 
-#manga-chapter-counter .mcc-group-ch {
+.mcc-scanlation-ch {
   font-size: 1.1rem;
-  color: rgb(var(--color-text-lighter));
-  background: rgba(var(--color-foreground), 0.08);
-  padding: 1px 6px;
-  border-radius: 3px;
+  color: rgb(var(--color-blue));
+  background: rgba(var(--color-blue), 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
   white-space: nowrap;
+  margin-left: 8px;
   flex-shrink: 0;
-}
-
-#manga-chapter-counter .mcc-group-arrow {
-  font-size: 1.3rem;
-  opacity: 0.4;
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-#manga-chapter-counter .mcc-group-link:hover .mcc-group-arrow {
-  opacity: 1;
-  transform: translateX(2px);
 }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Manga Chapter Counter",
-  "version": "1.0.0",
-  "description": "Shows chapter/volume counts from official sources on AniList manga pages",
+  "version": "2.0.0",
+  "description": "Shows chapter counts and scanlation groups on AniList manga pages",
   "permissions": ["declarativeNetRequest"],
   "host_permissions": [
     "https://graphql.anilist.co/*",
@@ -23,16 +23,7 @@
     "https://*.delitoon.de/*",
     "https://*.tappytoon.com/*",
     "https://*.manta.net/*",
-    "https://api.mangaupdates.com/*",
-    "https://api.asurascans.com/*",
-    "https://api.asuracomic.net/*",
-    "https://api.comicasura.net/*",
-    "https://*.asurascans.com/*",
-    "https://*.asuracomic.net/*",
-    "https://api.omegascans.org/*",
-    "https://api.luacomic.org/*",
-    "https://api.hivetoons.org/*",
-    "https://*.mangadex.org/*"
+    "https://api.mangaupdates.com/*"
   ],
   "background": {
     "service_worker": "background.js"
