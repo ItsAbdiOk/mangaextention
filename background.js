@@ -18,8 +18,10 @@ const ALLOWED_FETCH_DOMAINS = [
 ];
 
 // Strip chrome-extension:// Origin from MangaUpdates API requests
+// Strip chrome-extension:// Origin from MangaUpdates API requests.
+// Must cover both the actual request and the CORS preflight (OPTIONS).
 chrome.declarativeNetRequest.updateDynamicRules({
-  removeRuleIds: [1],
+  removeRuleIds: [1, 2],
   addRules: [
     {
       id: 1,
@@ -30,6 +32,17 @@ chrome.declarativeNetRequest.updateDynamicRules({
       condition: {
         urlFilter: "api.mangaupdates.com",
         resourceTypes: ["xmlhttprequest"],
+      },
+    },
+    {
+      id: 2,
+      action: {
+        type: "modifyHeaders",
+        requestHeaders: [{ header: "Origin", operation: "remove" }],
+      },
+      condition: {
+        urlFilter: "api.mangaupdates.com",
+        resourceTypes: ["other"],
       },
     },
   ],
