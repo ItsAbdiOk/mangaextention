@@ -342,23 +342,30 @@
     section.appendChild(heading);
 
     for (const group of groups) {
-      const link = document.createElement("a");
-      link.className = "mcc-scanlation-link";
-      link.href = group.site || "#";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
+      // Validate site URL — only allow https:// links
+      const hasValidSite =
+        group.site &&
+        /^https?:\/\//.test(group.site);
+
+      const el = document.createElement(hasValidSite ? "a" : "div");
+      el.className = "mcc-scanlation-link";
+      if (hasValidSite) {
+        el.href = group.site;
+        el.target = "_blank";
+        el.rel = "noopener noreferrer";
+      }
 
       // Favicon from Google's service
-      if (group.site) {
+      if (hasValidSite) {
         try {
           const domain = new URL(group.site).hostname;
           const icon = document.createElement("img");
           icon.className = "mcc-scanlation-icon";
-          icon.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+          icon.src = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32`;
           icon.alt = "";
           icon.width = 24;
           icon.height = 24;
-          link.appendChild(icon);
+          el.appendChild(icon);
         } catch {
           // Skip icon if URL is invalid
         }
@@ -372,9 +379,9 @@
       chBadge.className = "mcc-scanlation-ch";
       chBadge.textContent = `Ch. ${group.latestChapter}`;
 
-      link.appendChild(name);
-      link.appendChild(chBadge);
-      section.appendChild(link);
+      el.appendChild(name);
+      el.appendChild(chBadge);
+      section.appendChild(el);
     }
 
     // Insert after the external links section
@@ -454,7 +461,7 @@
         injectScanlationGroups(muData);
       }
     } catch (e) {
-      console.error("[MangaChapterCounter] Error:", e);
+      // Silently fail — partial data may still have been injected
       removeExisting();
     } finally {
       processing = false;

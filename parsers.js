@@ -163,32 +163,6 @@ const Parsers = {
   },
 
   /**
-   * MangaPlus (mangaplus.shueisha.co.jp)
-   * JS-rendered, so HTML fetch is limited. Try to extract from any
-   * server-rendered data or JSON embedded in the page.
-   */
-  parseMangaPlus(html) {
-    // MangaPlus embeds some data in JSON. Try to find chapter info.
-    const episodes = [];
-    const chPattern = /[Cc]hapter\s*(\d+)/g;
-    let m;
-    while ((m = chPattern.exec(html)) !== null) {
-      episodes.push(parseInt(m[1], 10));
-    }
-    if (episodes.length > 0) return Math.max(...episodes);
-
-    // Try "#N" patterns
-    const hashPattern = /#(\d+)/g;
-    while ((m = hashPattern.exec(html)) !== null) {
-      const n = parseInt(m[1], 10);
-      if (n > 0 && n < 10000) episodes.push(n);
-    }
-    if (episodes.length > 0) return Math.max(...episodes);
-
-    return null;
-  },
-
-  /**
    * Tapas (tapas.io)
    * Has <p class="episode-cnt">146 episodes</p> in server-rendered HTML.
    */
@@ -236,47 +210,6 @@ const Parsers = {
     return null;
   },
 
-  /**
-   * Generic parser — last resort for unknown sites.
-   * Looks for common patterns across languages.
-   */
-  parseGeneric(html) {
-    // Skip JS-rendered shell pages
-    if (html.length < 5000) return null;
-
-    const episodes = [];
-    let m;
-
-    // "N episodes" / "N chapters"
-    const enPattern = /(\d+)\s+(?:episodes?|chapters?)/gi;
-    while ((m = enPattern.exec(html)) !== null) {
-      const n = parseInt(m[1], 10);
-      if (n > 0 && n < 10000) episodes.push(n);
-    }
-
-    // Korean: N화 / N회
-    const krPattern = /(\d+)\s*(?:화|회|편)/g;
-    while ((m = krPattern.exec(html)) !== null) {
-      const n = parseInt(m[1], 10);
-      if (n > 0 && n < 10000) episodes.push(n);
-    }
-
-    // Japanese: 第N話 / 全N話
-    const jpPattern = /(?:第|全)\s*(\d+)\s*話/g;
-    while ((m = jpPattern.exec(html)) !== null) {
-      episodes.push(parseInt(m[1], 10));
-    }
-
-    // episode_no=N or #N in URLs/text
-    const numPattern = /(?:episode_no=|#)(\d+)/g;
-    while ((m = numPattern.exec(html)) !== null) {
-      const n = parseInt(m[1], 10);
-      if (n > 0 && n < 10000) episodes.push(n);
-    }
-
-    if (episodes.length > 0) return Math.max(...episodes);
-    return null;
-  },
 };
 
 /**
@@ -300,15 +233,6 @@ const SITE_PARSER_MAP = {
   Kadocomi: Parsers.parseKadocomi,
   "Comic Walker": Parsers.parseKadocomi,
   "Pocket Magazine": Parsers.parsePocketMagazine,
-
-  // These sites are JS-rendered but we try the generic parser anyway.
-  // The generic parser has safeguards — it returns null for tiny shell pages.
-  MangaPlus: Parsers.parseGeneric,
-  "MANGA Plus": Parsers.parseGeneric,
-  Lezhin: Parsers.parseGeneric,
-  Tappytoon: Parsers.parseGeneric,
-  "Manta Comics": Parsers.parseGeneric,
-  "Copin Comics": Parsers.parseGeneric,
 };
 
 /**

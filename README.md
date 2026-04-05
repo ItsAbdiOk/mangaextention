@@ -8,23 +8,23 @@ AniList doesn't show chapter counts for ongoing series. This extension pulls dat
 
 - **Chapter counts from official sources** — Scrapes Webtoon, Naver Series, Tapas, and other platforms linked on AniList
 - **Raw chapter count via MangaUpdates** — Shows the latest raw chapter number even when official sources are JS-rendered
-- **Scanlation group links** — Shows which groups are translating, their latest chapter, and links directly to the series page
-- **Deep linking** — For supported sites (Asura, etc.), links go directly to the manga's page, not just the homepage
-- **Multi-language support** — Shows chapter counts per language (KR, EN, FR, TH, etc.)
-- **SPA-aware** — Works with AniList's client-side navigation, updates when you browse between manga
+- **Scanlation chapter count** — Shows the latest scanlation chapter alongside raw and official counts
+- **Scanlation group links** — Shows which groups are translating with favicons and links to their sites, placed near AniList's "External & Streaming links"
+- **Multi-language support** — Shows chapter counts per language (KR, EN, CN, TH, etc.)
+- **Dark mode support** — Uses AniList's CSS variables for seamless theme integration
+- **SPA-aware** — Works with AniList's client-side navigation
 
 ## How It Works
 
 1. When you visit an AniList manga page, the extension:
    - Queries AniList's GraphQL API for external links and metadata
-   - Fetches official source pages (Webtoon, Naver, Tapas) and parses chapter counts from their HTML
-   - Queries MangaUpdates for the latest raw chapter count, scanlation groups, and alternative titles
-   - Resolves deep links to scanlation sites using their search APIs
-2. Results are injected into the sidebar next to the Status field
+   - Fetches official source pages (Webtoon, Naver, Tapas) and parses chapter counts from HTML
+   - Queries MangaUpdates API for the latest raw chapter count, scanlation groups, and per-group chapters (via RSS)
+2. Chapter counts are injected into the sidebar next to Status
+3. Scanlation groups are shown at the bottom near External & Streaming links
 
 ## Supported Sources
 
-### Official Platforms (direct HTML scraping)
 | Source | Languages | Method |
 |--------|-----------|--------|
 | Webtoon | EN, KR, TH, FR, etc. | `episode_no` from HTML |
@@ -32,53 +32,37 @@ AniList doesn't show chapter counts for ongoing series. This extension pulls dat
 | Naver Webtoon | KR | Episode count patterns |
 | Tapas | EN | `episode-cnt` element |
 | Kadocomi / Comic Walker | JP | Chapter patterns |
-
-### Fallback
-| Source | Data |
-|--------|------|
-| MangaUpdates API | Latest raw chapter, scanlation groups, per-group chapter counts (via RSS) |
-
-### Scanlation Deep Links
-| Site | Method |
-|------|--------|
-| Asura Scans | Search API with alt titles from MangaUpdates |
-| Other sites | Fallback search URL (`?s=title`) |
+| KakaoPage | KR | `__NEXT_DATA__` patterns |
+| MangaUpdates | All | REST API (chapters, groups, RSS) |
 
 ## Installation
 
 1. Clone or download this repo
 2. Open `chrome://extensions` in Chrome
-3. Enable **Developer mode** (top right toggle)
-4. Click **Load unpacked** and select the `mangaextention` folder
-5. Visit any AniList manga page (e.g., [anilist.co/manga/163824](https://anilist.co/manga/163824/Revenge-of-the-Baskerville-Bloodhound/))
+3. Enable **Developer mode** (top right)
+4. Click **Load unpacked** and select the folder
+5. Visit any AniList manga page
 
 ## Architecture
 
 ```
-manifest.json     — Manifest V3, content script + background service worker
-background.js     — Cross-origin fetches, AniList/MangaUpdates API calls, deep link resolution
-content.js        — AniList page detection, DOM injection, SPA navigation handling
-parsers.js        — Source-specific HTML parsers (Webtoon, Naver, Tapas, etc.)
-styles.css        — Matches AniList's sidebar styling
+manifest.json   — Manifest V3 config
+background.js   — Cross-origin fetches with URL allowlist, API calls, cache with eviction
+content.js      — AniList DOM injection, SPA navigation handling
+parsers.js      — Source-specific HTML parsers
+styles.css      — AniList-native styling with dark mode support via CSS variables
 ```
 
-### Data Flow
-```
-AniList page → Extract manga ID
-                ↓
-         AniList GraphQL API → external links + titles
-                ↓                        ↓
-    Scrape official sources     MangaUpdates API
-    (Webtoon, Naver, Tapas)     (chapters, groups, RSS, alt titles)
-                ↓                        ↓
-         Parse chapter counts    Resolve scanlation deep links
-                ↓                        ↓
-              Inject into AniList sidebar
-```
+## Security
+
+- **URL allowlist** — The background fetch proxy only accepts requests for known source domains
+- **URL validation** — All external URLs are validated before use as `href` attributes
+- **No eval/innerHTML** — All DOM manipulation uses safe `createElement`/`textContent`
+- **Cache eviction** — Memory-bounded cache prevents unbounded growth
+- **No spoofed headers** — Uses the browser's real User-Agent
 
 ## Adding New Sources
 
-### Official source parser
 Add a parser function to `parsers.js` and register it in `SITE_PARSER_MAP`:
 
 ```js
@@ -88,22 +72,9 @@ parseMySource(html) {
 }
 ```
 
-### Scanlation site deep link
-Add a search config to `SITE_SEARCH_CONFIGS` in `background.js`:
-
-```js
-"mysite.com": {
-  type: "json_api",
-  searchUrl: (base, query) => `${base}/api/search?q=${encodeURIComponent(query)}`,
-  headers: { Referer: "https://mysite.com/" },
-  parseResult: (json, base) => {
-    if (json.results?.length > 0) return `${base}/manga/${json.results[0].slug}`;
-    return null;
-  },
-}
-```
+Then add the domain to `ALLOWED_FETCH_DOMAINS` in `background.js` and `host_permissions` in `manifest.json`.
 
 ## Permissions
 
-- `declarativeNetRequest` — Strip extension origin headers from API requests
-- `host_permissions` — Fetch from AniList API, MangaUpdates API, official manga platforms, and scanlation site APIs
+- `declarativeNetRequest` — Strip extension origin headers from MangaUpdates API requests
+- `host_permissions` — Fetch from AniList API, MangaUpdates API, and official manga platforms

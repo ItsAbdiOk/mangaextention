@@ -1,5 +1,21 @@
 const cache = new Map();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const CACHE_MAX_ENTRIES = 50;
+
+// Allowed domains for the FETCH_URL proxy — only these can be fetched
+const ALLOWED_FETCH_DOMAINS = [
+  "series.naver.com",
+  "comic.naver.com",
+  "www.webtoons.com",
+  "webtoons.com",
+  "page.kakao.com",
+  "webtoon.kakao.com",
+  "tapas.io",
+  "kadocomi.jp",
+  "mangaplus.shueisha.co.jp",
+  "pocket.shonenmagazine.com",
+  "comic-walker.com",
+];
 
 // Strip chrome-extension:// Origin from MangaUpdates API requests
 chrome.declarativeNetRequest.updateDynamicRules({
@@ -21,6 +37,11 @@ chrome.declarativeNetRequest.updateDynamicRules({
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_URL") {
+    // Validate URL against allowlist to prevent open proxy abuse
+    if (!isAllowedUrl(message.url)) {
+      sendResponse({ ok: false, error: "URL not in allowlist" });
+      return true;
+    }
     fetchWithCache(message.url)
       .then((html) => sendResponse({ ok: true, html }))
       .catch((err) => sendResponse({ ok: false, error: err.message }));
@@ -28,6 +49,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "FETCH_ANILIST") {
+    if (typeof message.id !== "number") {
+      sendResponse({ ok: false, error: "Invalid manga ID" });
+      return true;
+    }
     fetchAniList(message.id)
       .then((data) => sendResponse({ ok: true, data }))
       .catch((err) => sendResponse({ ok: false, error: err.message }));
@@ -43,15 +68,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 /**
- * Build headers tailored to the target domain.
- * Naver sites require a Referer from their own domain.
+ * Check if a URL is in the allowed fetch domains.
+ */
+function isAllowedUrl(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    return ALLOWED_FETCH_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith("." + domain)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Evict oldest cache entries when the cache exceeds the max size.
+ */
+function evictCache() {
+  if (cache.size <= CACHE_MAX_ENTRIES) return;
+  const entries = [...cache.entries()].sort((a, b) => a[1].time - b[1].time);
+  const toRemove = entries.slice(0, cache.size - CACHE_MAX_ENTRIES);
+  for (const [key] of toRemove) cache.delete(key);
+}
+
+/**
+ * Build headers for source page fetches.
+ * Naver sites need a Referer from their own domain.
  */
 function getHeadersForUrl(url) {
   const base = {
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   };
 
   if (url.includes("series.naver.com")) {
@@ -79,6 +125,7 @@ async function fetchWithCache(url) {
   if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).hostname}`);
   const html = await res.text();
   cache.set(url, { html, time: Date.now() });
+  evictCache();
   return html;
 }
 
@@ -116,12 +163,13 @@ async function fetchAniList(mediaId) {
   const json = await res.json();
   const data = json.data.Media;
   cache.set(cacheKey, { data, time: Date.now() });
+  evictCache();
   return data;
 }
 
 /**
- * Search MangaUpdates for a title and return latest chapter + status info.
- * Two-step: search by title, then fetch full series details.
+ * Search MangaUpdates by title. Returns chapter info, scanlation groups, and
+ * per-group latest chapters parsed from the RSS feed.
  */
 async function fetchMangaUpdates(title) {
   const cacheKey = `mu:${title}`;
@@ -132,11 +180,9 @@ async function fetchMangaUpdates(title) {
 
   const muHeaders = {
     "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     Accept: "application/json",
   };
 
-  // Step 1: Search for the series
   const searchRes = await fetch("https://api.mangaupdates.com/v1/series/search", {
     method: "POST",
     headers: muHeaders,
@@ -153,10 +199,8 @@ async function fetchMangaUpdates(title) {
     return data;
   }
 
-  // Take the first result
   const seriesId = results[0].record.series_id;
 
-  // Step 2: Get details, groups, and RSS releases in parallel
   const [detailRes, groupsRes, rssRes] = await Promise.all([
     fetch(`https://api.mangaupdates.com/v1/series/${seriesId}`, { headers: muHeaders }),
     fetch(`https://api.mangaupdates.com/v1/series/${seriesId}/groups`, { headers: muHeaders }),
@@ -166,18 +210,27 @@ async function fetchMangaUpdates(title) {
   if (!detailRes.ok) throw new Error(`MangaUpdates detail HTTP ${detailRes.status}`);
   const detail = await detailRes.json();
 
-  // Parse RSS for per-group latest chapter
+  // Parse RSS for per-group latest chapter using DOMParser
   const groupChapters = {};
   if (rssRes.ok) {
     const rssText = await rssRes.text();
-    const chapterRegex = /<item>\s*<title>[^<]*c\.(\d+)[^<]*<\/title>\s*<description>([^<]+)<\/description>/g;
-    let match;
-    while ((match = chapterRegex.exec(rssText)) !== null) {
-      const ch = parseInt(match[1], 10);
-      const groupName = match[2].trim();
-      if (!groupChapters[groupName] || ch > groupChapters[groupName]) {
-        groupChapters[groupName] = ch;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rssText, "text/xml");
+      const items = doc.querySelectorAll("item");
+      for (const item of items) {
+        const title = item.querySelector("title")?.textContent || "";
+        const group = item.querySelector("description")?.textContent?.trim();
+        const chMatch = title.match(/c\.(\d+)/);
+        if (chMatch && group) {
+          const ch = parseInt(chMatch[1], 10);
+          if (!groupChapters[group] || ch > groupChapters[group]) {
+            groupChapters[group] = ch;
+          }
+        }
       }
+    } catch {
+      // RSS parse failed — skip group chapters
     }
   }
 
@@ -188,8 +241,6 @@ async function fetchMangaUpdates(title) {
       name: g.name,
       active: g.active,
       site: g.social?.site || null,
-      discord: g.social?.discord || null,
-      mangadex: g.social?.forum || null,
       latestChapter: groupChapters[g.name] || null,
     }));
   }
@@ -205,5 +256,6 @@ async function fetchMangaUpdates(title) {
   };
 
   cache.set(cacheKey, { data, time: Date.now() });
+  evictCache();
   return data;
 }
