@@ -10,7 +10,7 @@
 #manga-chapter-counter .mcc-data-set .type {
   font-size: 1.3rem;
   font-weight: 500;
-  color: rgb(var(--color-blue-dim, 100, 115, 138));
+  color: rgb(92, 114, 138);
   margin-bottom: 4px;
 }
 
@@ -78,15 +78,15 @@
   padding: 0 12px;
   margin-bottom: 6px;
   border-radius: 5px;
-  background: rgba(var(--color-foreground), 0.04);
+  background: rgb(var(--color-foreground));
   text-decoration: none;
-  color: rgb(var(--color-text-lighter));
+  color: rgb(92, 114, 138);
   font-size: 1.3rem;
   transition: background 0.15s;
 }
 
 .mcc-scanlation-link:hover {
-  background: rgba(var(--color-foreground), 0.1);
+  opacity: 0.8;
 }
 
 .mcc-scanlation-link:last-child {
