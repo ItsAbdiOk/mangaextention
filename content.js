@@ -330,9 +330,13 @@
     // Sort by latest chapter descending
     groups.sort((a, b) => (b.latestChapter || 0) - (a.latestChapter || 0));
 
-    // Find the "External & Streaming links" section
+    // Find where to insert: after "External & Streaming links" if it exists,
+    // otherwise after the sidebar grid section (before the footer)
     const externalSection = document.querySelector(".external-links");
-    if (!externalSection) return;
+    const insertAfter = externalSection
+      || document.querySelector(".grid-section-wrap")
+      || document.querySelector(".sidebar");
+    if (!insertAfter) return;
 
     const section = document.createElement("div");
     section.id = SCANLATION_ID;
@@ -385,8 +389,8 @@
       section.appendChild(el);
     }
 
-    // Insert after the external links section
-    externalSection.after(section);
+    // Insert after the found section
+    insertAfter.after(section);
   }
 
   // ── Loading indicator ──
@@ -456,11 +460,9 @@
       removeExisting();
       injectChapterCounts(mediaData, sourceCounts, muData);
 
-      // Wait for external links section to appear, then inject scanlation groups
-      const extLinks = await waitForElement(".external-links", 10000);
-      if (extLinks) {
-        injectScanlationGroups(muData);
-      }
+      // Inject scanlation groups — try after external links, or fallback locations
+      await waitForElement(".external-links, .grid-section-wrap, .sidebar", 10000);
+      injectScanlationGroups(muData);
     } catch {
       removeExisting();
     } finally {
