@@ -331,10 +331,10 @@
     groups.sort((a, b) => (b.latestChapter || 0) - (a.latestChapter || 0));
 
     // Find where to insert: after "External & Streaming links" if it exists,
-    // otherwise append to the end of the overview/content area
+    // otherwise append to the end of the sidebar
     const externalSection = document.querySelector(".external-links");
-    const overviewSection = document.querySelector(".overview");
-    if (!externalSection && !overviewSection) return;
+    const sidebarSection = document.querySelector(".sidebar");
+    if (!externalSection && !sidebarSection) return;
 
     const section = document.createElement("div");
     section.id = SCANLATION_ID;
@@ -387,11 +387,11 @@
       section.appendChild(el);
     }
 
-    // Insert after external links, or append to end of overview
+    // Insert after external links, or append to end of sidebar
     if (externalSection) {
       externalSection.after(section);
     } else {
-      overviewSection.appendChild(section);
+      sidebarSection.appendChild(section);
     }
   }
 
@@ -462,8 +462,8 @@
       removeExisting();
       injectChapterCounts(mediaData, sourceCounts, muData);
 
-      // Inject scanlation groups — after external links, or at end of overview
-      await waitForElement(".external-links, .overview", 10000);
+      // Inject scanlation groups — after external links, or at end of sidebar
+      await waitForElement(".external-links, .sidebar", 10000);
       injectScanlationGroups(muData);
     } catch {
       removeExisting();
