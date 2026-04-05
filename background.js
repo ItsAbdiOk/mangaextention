@@ -223,27 +223,21 @@ async function fetchMangaUpdates(title) {
   if (!detailRes.ok) throw new Error(`MangaUpdates detail HTTP ${detailRes.status}`);
   const detail = await detailRes.json();
 
-  // Parse RSS for per-group latest chapter using DOMParser
+  // Parse RSS for per-group latest chapter.
+  // Note: DOMParser is unavailable in MV3 service workers, so we use regex.
+  // RSS items have: <title>...c.N...</title><description>GroupName</description>
   const groupChapters = {};
   if (rssRes.ok) {
     const rssText = await rssRes.text();
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(rssText, "text/xml");
-      const items = doc.querySelectorAll("item");
-      for (const item of items) {
-        const title = item.querySelector("title")?.textContent || "";
-        const group = item.querySelector("description")?.textContent?.trim();
-        const chMatch = title.match(/c\.(\d+)/);
-        if (chMatch && group) {
-          const ch = parseInt(chMatch[1], 10);
-          if (!groupChapters[group] || ch > groupChapters[group]) {
-            groupChapters[group] = ch;
-          }
-        }
+    // Match chapter ranges like c.134-136 (take the higher number)
+    const itemRegex = /<title>[^<]*c\.(\d+)(?:-(\d+))?[^<]*<\/title>\s*<description>([^<]+)<\/description>/g;
+    let match;
+    while ((match = itemRegex.exec(rssText)) !== null) {
+      const ch = parseInt(match[2] || match[1], 10); // use end of range if present
+      const groupName = match[3].trim();
+      if (!groupChapters[groupName] || ch > groupChapters[groupName]) {
+        groupChapters[groupName] = ch;
       }
-    } catch {
-      // RSS parse failed — skip group chapters
     }
   }
 

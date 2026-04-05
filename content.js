@@ -460,8 +460,7 @@
       if (extLinks) {
         injectScanlationGroups(muData);
       }
-    } catch (e) {
-      // Silently fail — partial data may still have been injected
+    } catch {
       removeExisting();
     } finally {
       processing = false;
