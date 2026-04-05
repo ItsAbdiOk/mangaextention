@@ -1,4 +1,4 @@
-/* Manga Chapter Counter — AniList-native styling */
+/* Manga Chapter Counter — matches AniList's exact native styling */
 
 /* ── Sidebar: Chapter/Volume counts ── */
 
@@ -10,12 +10,12 @@
 #manga-chapter-counter .mcc-data-set .type {
   font-size: 1.3rem;
   font-weight: 500;
-  color: rgb(var(--color-blue));
+  color: rgb(var(--color-blue-dim, 100, 115, 138));
   margin-bottom: 4px;
 }
 
 #manga-chapter-counter .mcc-data-set .value {
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   color: rgb(var(--color-text-lighter));
 }
 
@@ -31,8 +31,8 @@
 }
 
 #manga-chapter-counter .mcc-count {
-  font-size: 1.4rem;
-  font-weight: 600;
+  font-size: 1.3rem;
+  font-weight: 500;
   color: rgb(var(--color-text));
   min-width: 30px;
 }
@@ -57,11 +57,10 @@
   50% { opacity: 0.4; }
 }
 
-/* ── Bottom: Scanlation Groups (matches External & Streaming links) ── */
+/* ── Bottom: Scanlation Groups (matches External & Streaming links exactly) ── */
 
 .mcc-scanlation-section {
   margin-top: 25px;
-  padding: 0 8px;
 }
 
 .mcc-scanlation-section h2 {
@@ -71,21 +70,18 @@
   margin-bottom: 10px;
 }
 
-.mcc-scanlation-wrap {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
-}
-
 .mcc-scanlation-link {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-radius: 6px;
+  height: 30px;
+  padding: 0 12px;
+  margin-bottom: 6px;
+  border-radius: 5px;
   background: rgba(var(--color-foreground), 0.04);
   text-decoration: none;
-  color: rgb(var(--color-text));
+  color: rgb(var(--color-text-lighter));
+  font-size: 1.3rem;
   transition: background 0.15s;
 }
 
@@ -93,8 +89,11 @@
   background: rgba(var(--color-foreground), 0.1);
 }
 
+.mcc-scanlation-link:last-child {
+  margin-bottom: 0;
+}
+
 .mcc-scanlation-name {
-  font-size: 1.3rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -103,11 +102,8 @@
 
 .mcc-scanlation-ch {
   font-size: 1.1rem;
-  color: rgb(var(--color-blue));
-  background: rgba(var(--color-blue), 0.1);
-  padding: 2px 8px;
-  border-radius: 4px;
+  color: rgb(var(--color-text-lighter));
+  opacity: 0.7;
   white-space: nowrap;
   margin-left: 8px;
-  flex-shrink: 0;
 }

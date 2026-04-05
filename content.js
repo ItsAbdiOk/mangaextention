@@ -273,6 +273,27 @@
         valueWrap.appendChild(row);
       }
 
+      // Add SCAN row — highest scanlation chapter from MangaUpdates groups
+      const activeGroups = (muData?.groups || []).filter(
+        (g) => g.active && g.latestChapter
+      );
+      if (activeGroups.length > 0) {
+        const maxScan = Math.max(...activeGroups.map((g) => g.latestChapter));
+        if (maxScan > 0) {
+          const row = document.createElement("div");
+          row.className = "mcc-source-row";
+          const count = document.createElement("span");
+          count.className = "mcc-count";
+          count.textContent = maxScan;
+          const badge = document.createElement("span");
+          badge.className = "mcc-badge";
+          badge.textContent = "SCAN";
+          row.appendChild(count);
+          row.appendChild(badge);
+          valueWrap.appendChild(row);
+        }
+      }
+
       chapterSet.appendChild(valueWrap);
       container.appendChild(chapterSet);
     }
@@ -320,9 +341,6 @@
     heading.textContent = "Scanlation Groups";
     section.appendChild(heading);
 
-    const wrap = document.createElement("div");
-    wrap.className = "mcc-scanlation-wrap";
-
     for (const group of groups) {
       const link = document.createElement("a");
       link.className = "mcc-scanlation-link";
@@ -340,10 +358,8 @@
 
       link.appendChild(name);
       link.appendChild(chBadge);
-      wrap.appendChild(link);
+      section.appendChild(link);
     }
-
-    section.appendChild(wrap);
 
     // Insert after the external links section
     externalSection.after(section);
