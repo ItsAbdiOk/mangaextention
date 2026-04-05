@@ -255,11 +255,61 @@ function asuraParser(apiBase, canonicalBase) {
   };
 }
 
+/**
+ * Flame Comics parser — fetches full series list and filters client-side.
+ * Their API returns all series at once (no server-side search).
+ */
+let flameSeriesCache = null;
+let flameCacheTime = 0;
+
+function flameParser(canonicalBase) {
+  return {
+    type: "custom",
+    search: async (base, altTitles) => {
+      // Cache the full series list for 30 min
+      if (!flameSeriesCache || Date.now() - flameCacheTime > 30 * 60 * 1000) {
+        const res = await fetch(`${canonicalBase}/api/series`, {
+          headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+        });
+        if (!res.ok) return null;
+        flameSeriesCache = await res.json();
+        flameCacheTime = Date.now();
+      }
+
+      // Try each alt title — fuzzy match against label
+      for (const title of altTitles) {
+        const lower = title.toLowerCase();
+        const match = flameSeriesCache.find(
+          (s) => s.label && s.label.toLowerCase() === lower
+        );
+        if (match) return `${canonicalBase}/series/${match.id}`;
+      }
+
+      // Partial match — check if any alt title is contained in a series label
+      for (const title of altTitles) {
+        const words = title.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+        if (words.length < 2) continue;
+        const match = flameSeriesCache.find((s) => {
+          const label = (s.label || "").toLowerCase();
+          return words.every((w) => label.includes(w));
+        });
+        if (match) return `${canonicalBase}/series/${match.id}`;
+      }
+
+      return null;
+    },
+  };
+}
+
 const SITE_SEARCH_CONFIGS = {
-  // Asura operates under multiple domains — always use asurascans.com as canonical
+  // Asura — multiple domains, canonical is asurascans.com
   "asurascans.com": asuraParser("https://api.asurascans.com", "https://asurascans.com"),
   "asuracomic.net": asuraParser("https://api.asurascans.com", "https://asurascans.com"),
   "comicasura.net": asuraParser("https://api.comicasura.net", "https://comicasura.net"),
+
+  // Flame Comics
+  "flamecomics.xyz": flameParser("https://flamecomics.xyz"),
+  "flamescans.lol": flameParser("https://flamescans.lol"),
 };
 
 /**
@@ -294,25 +344,34 @@ async function findSeriesUrl(siteUrl, altTitles) {
   const base = new URL(siteUrl).origin;
   const config = SITE_SEARCH_CONFIGS[domain];
 
-  if (config && config.type === "json_api") {
-    // Try each alt title until we find a match
-    for (const title of altTitles.slice(0, 5)) {
-      try {
-        const searchUrl = config.searchUrl(base, title);
-        const res = await fetch(searchUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0",
-            Accept: "application/json",
-            ...(config.headers || {}),
-          },
-        });
-        if (!res.ok) continue;
-        const json = await res.json();
-        const result = config.parseResult(json, base);
+  if (config) {
+    try {
+      if (config.type === "json_api") {
+        // Try each alt title until we find a match
+        for (const title of altTitles.slice(0, 5)) {
+          try {
+            const searchUrl = config.searchUrl(base, title);
+            const res = await fetch(searchUrl, {
+              headers: {
+                "User-Agent": "Mozilla/5.0",
+                Accept: "application/json",
+                ...(config.headers || {}),
+              },
+            });
+            if (!res.ok) continue;
+            const json = await res.json();
+            const result = config.parseResult(json, base);
+            if (result) return result;
+          } catch {
+            continue;
+          }
+        }
+      } else if (config.type === "custom" && config.search) {
+        const result = await config.search(base, altTitles);
         if (result) return result;
-      } catch {
-        continue;
       }
+    } catch {
+      // Fall through to generic search
     }
   }
 
