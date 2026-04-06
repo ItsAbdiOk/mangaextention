@@ -146,10 +146,16 @@
     const supportedLinks = externalLinks.filter(
       (link) => getParserForSite(link.site) !== null
     );
+    const allDates = [];
     const fetches = supportedLinks.map(async (link) => {
       try {
         const html = await fetchSourcePage(link.url);
         const chapters = parseSourceChapters(link.site, html);
+
+        // Extract release dates from this source
+        const dates = parseDatesFromSource(link.site, html);
+        if (dates.length > 0) allDates.push(...dates);
+
         if (chapters !== null) {
           return {
             site: link.site,
@@ -165,7 +171,10 @@
       return null;
     });
     const settled = await Promise.all(fetches);
-    return settled.filter((r) => r !== null);
+    return {
+      counts: settled.filter((r) => r !== null),
+      dates: allDates.sort((a, b) => b - a), // newest first
+    };
   }
 
   // ── Sidebar: Chapter counts ──
@@ -175,7 +184,7 @@
     document.getElementById(SCANLATION_ID)?.remove();
   }
 
-  function injectChapterCounts(mediaData, sourceCounts, muData) {
+  function injectChapterCounts(mediaData, sourceCounts, muData, releaseDates) {
     const sidebar = document.querySelector(".sidebar .data");
     if (!sidebar) return;
 
@@ -314,7 +323,100 @@
       container.appendChild(volumeSet);
     }
 
+    // Schedule section — only for ongoing series
+    const isOngoing =
+      mediaData.status === "RELEASING" || mediaData.status === "NOT_YET_RELEASED";
+    const isCompleted = muData?.completed === true;
+
+    if (isOngoing && !isCompleted) {
+      const schedule = calculateSchedule(releaseDates || [], muData);
+      if (schedule) {
+        const schedSet = document.createElement("div");
+        schedSet.className = "data-set mcc-data-set";
+        const label = document.createElement("div");
+        label.className = "type";
+        label.textContent = "Schedule";
+        schedSet.appendChild(label);
+        const value = document.createElement("div");
+        value.className = "value mcc-schedule-value";
+        value.textContent = schedule;
+        schedSet.appendChild(value);
+        container.appendChild(schedSet);
+      }
+    }
+
     statusSet.after(container);
+  }
+
+  /**
+   * Calculate a human-readable schedule string from release dates.
+   * Returns something like "Weekly · Next ~Apr 10" or "Last updated 5 days ago".
+   */
+  function calculateSchedule(dates, muData) {
+    const now = new Date();
+
+    // Try to calculate from actual release dates (need at least 3)
+    if (dates.length >= 3) {
+      // Use the most recent 8 dates to calculate interval
+      const recent = dates.slice(0, 8);
+      const intervals = [];
+      for (let i = 0; i < recent.length - 1; i++) {
+        const diff = (recent[i] - recent[i + 1]) / (1000 * 60 * 60 * 24);
+        if (diff > 0 && diff < 90) intervals.push(diff); // ignore gaps > 90 days
+      }
+
+      if (intervals.length >= 2) {
+        const avgDays = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        const lastDate = recent[0];
+        const daysSinceLast = (now - lastDate) / (1000 * 60 * 60 * 24);
+
+        // Calculate next expected date
+        const nextDate = new Date(lastDate.getTime() + avgDays * 24 * 60 * 60 * 1000);
+        // If next date is in the past, project forward
+        const projectedNext =
+          nextDate > now
+            ? nextDate
+            : new Date(
+                lastDate.getTime() +
+                  Math.ceil(daysSinceLast / avgDays) * avgDays * 24 * 60 * 60 * 1000
+              );
+
+        const freqLabel = getFrequencyLabel(avgDays);
+        const nextLabel = formatShortDate(projectedNext);
+
+        return `${freqLabel} · Next ~${nextLabel}`;
+      }
+    }
+
+    // Fallback: use MangaUpdates last_updated timestamp
+    if (muData?.lastUpdated) {
+      const lastDate = new Date(muData.lastUpdated * 1000);
+      const daysAgo = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+      if (daysAgo <= 0) return "Updated today";
+      if (daysAgo === 1) return "Updated yesterday";
+      return `Updated ${daysAgo} days ago`;
+    }
+
+    return null;
+  }
+
+  function getFrequencyLabel(avgDays) {
+    if (avgDays <= 1.5) return "Daily";
+    if (avgDays <= 5) return `Every ~${Math.round(avgDays)} days`;
+    if (avgDays <= 8) return "Weekly";
+    if (avgDays <= 11) return `Every ~${Math.round(avgDays)} days`;
+    if (avgDays <= 16) return "Biweekly";
+    if (avgDays <= 25) return `Every ~${Math.round(avgDays)} days`;
+    if (avgDays <= 35) return "Monthly";
+    return `Every ~${Math.round(avgDays)} days`;
+  }
+
+  function formatShortDate(date) {
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    return `${months[date.getMonth()]} ${date.getDate()}`;
   }
 
   // ── Bottom: Scanlation groups (near External & Streaming links) ──
@@ -453,14 +555,17 @@
         mediaData.title.native;
 
       // Fetch sources + MangaUpdates in parallel
-      const [sourceCounts, muData] = await Promise.all([
+      const [sourceData, muData] = await Promise.all([
         fetchAllSourceCounts(mediaData.externalLinks || []),
         fetchMangaUpdates(searchTitle).catch(() => ({ found: false })),
       ]);
 
-      // Inject sidebar chapter counts
+      const sourceCounts = sourceData.counts;
+      const releaseDates = sourceData.dates;
+
+      // Inject sidebar chapter counts + schedule
       removeExisting();
-      injectChapterCounts(mediaData, sourceCounts, muData);
+      injectChapterCounts(mediaData, sourceCounts, muData, releaseDates);
 
       // Inject scanlation groups — after external links, or at end of sidebar
       await waitForElement(".external-links, .sidebar", 10000);

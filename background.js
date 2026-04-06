@@ -256,6 +256,8 @@ async function fetchMangaUpdates(title) {
     found: true,
     title: detail.title,
     latestChapter: detail.latest_chapter,
+    lastUpdated: detail.last_updated?.timestamp || null,
+    completed: detail.completed || false,
     status: detail.status,
     type: detail.type,
     url: detail.url,

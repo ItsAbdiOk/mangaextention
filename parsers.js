@@ -242,3 +242,64 @@ const SITE_PARSER_MAP = {
 function getParserForSite(siteName) {
   return SITE_PARSER_MAP[siteName] || null;
 }
+
+// ── Date extraction for release schedule ──
+
+const MONTHS = {
+  Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+  Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+};
+
+/**
+ * Extract release dates from source page HTML.
+ * Returns an array of Date objects sorted descending (newest first), or [].
+ */
+function parseDatesFromSource(siteName, html) {
+  // Webtoon: "Apr 3, 2026", "Mar 27, 2026"
+  if (
+    siteName === "WEBTOON" ||
+    siteName === "Webtoon"
+  ) {
+    return parseDatesWebtoon(html);
+  }
+
+  // Tapas: similar English date formats
+  if (siteName === "Tapas") {
+    return parseDatesEnglish(html);
+  }
+
+  return [];
+}
+
+/**
+ * Parse "Mon DD, YYYY" dates from Webtoon pages.
+ */
+function parseDatesWebtoon(html) {
+  const dateRegex = /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2}),\s+(20\d{2})/g;
+  const dates = [];
+  let match;
+  while ((match = dateRegex.exec(html)) !== null) {
+    const month = MONTHS[match[1]];
+    const day = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    if (month !== undefined) {
+      dates.push(new Date(year, month, day));
+    }
+  }
+  // Sort descending (newest first) and deduplicate
+  dates.sort((a, b) => b - a);
+  const seen = new Set();
+  return dates.filter((d) => {
+    const key = d.getTime();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Parse English date formats (fallback for Tapas and similar).
+ */
+function parseDatesEnglish(html) {
+  return parseDatesWebtoon(html); // Same format
+}

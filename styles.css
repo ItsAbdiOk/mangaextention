@@ -57,6 +57,11 @@
   50% { opacity: 0.4; }
 }
 
+#manga-chapter-counter .mcc-schedule-value {
+  font-size: 1.2rem;
+  color: rgb(var(--color-text-lighter));
+}
+
 /* ── Bottom: Scanlation Groups (matches External & Streaming links) ── */
 
 .mcc-scanlation-section {
