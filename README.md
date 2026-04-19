@@ -10,7 +10,8 @@ AniList doesn't show chapter counts for ongoing series. This extension pulls dat
 - **Raw chapter count via MangaUpdates** — Shows the latest raw chapter number even when official sources are JS-rendered
 - **Scanlation chapter count** — Shows the latest scanlation chapter alongside raw and official counts
 - **Scanlation group links** — Shows which groups are translating with favicons and links to their sites, placed near AniList's "External & Streaming links"
-- **Multi-language support** — Shows chapter counts per language (KR, EN, CN, TH, etc.)
+- **Release schedule** — Shows "Weekly · Next ~Apr 10" calculated from release dates of official sources
+- **RAW / EN / SCAN rows** — Three concise rows in the sidebar: original language, English, and latest scanlation chapter
 - **Dark mode support** — Uses AniList's CSS variables for seamless theme integration
 - **SPA-aware** — Works with AniList's client-side navigation
 

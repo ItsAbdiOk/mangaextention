@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Manga Chapter Counter",
-  "version": "2.1.0",
-  "description": "Shows chapter counts and scanlation groups on AniList manga pages",
+  "version": "2.2.0",
+  "description": "Shows chapter counts, release schedules, and scanlation groups on AniList manga pages",
   "homepage_url": "https://github.com/ItsAbdiOk/mangaextention",
   "permissions": ["declarativeNetRequest"],
   "host_permissions": [
